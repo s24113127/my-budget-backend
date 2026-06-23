@@ -23,7 +23,7 @@ async function connectDB() {
 }
 connectDB();
 
-// 引入路由（模型會由路由內部自動加載，不再重複編譯）
+// 引入路由
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
@@ -99,6 +99,9 @@ app.get('/', (req, res) => {
         let userEmail = localStorage.getItem('userEmail') || '';
         let isRegisterMode = false;
 
+        // 動態獲取目前網頁所在的後端主機網址（修正跨域或網址寫錯問題）
+        const API_BASE = window.location.origin;
+
         function toggleAuthMode() {
           isRegisterMode = !isRegisterMode;
           document.getElementById('authTitle').innerText = isRegisterMode ? '新使用者註冊' : '使用者登入';
@@ -115,7 +118,7 @@ app.get('/', (req, res) => {
           const path = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
           
           try {
-            const res = await fetch(path, {
+            const res = await fetch(API_BASE + path, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email, password })
@@ -134,7 +137,10 @@ app.get('/', (req, res) => {
               localStorage.setItem('userEmail', userEmail);
               initApp();
             }
-          } catch (err) { alert('伺服器連線失敗！'); }
+          } catch (err) { 
+            console.error(err);
+            alert('伺服器連線失敗！'); 
+          }
         }
 
         function initApp() {
@@ -157,7 +163,7 @@ app.get('/', (req, res) => {
 
         async function getTransactions() {
           try {
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(API_BASE + '/api/transactions', {
               headers: { 'Authorization': 'Bearer ' + token }
             });
             const data = await res.json();
@@ -199,7 +205,7 @@ app.get('/', (req, res) => {
           if (!description || !amount) return alert('請填寫消費品項與金額！');
 
           try {
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(API_BASE + '/api/transactions', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -220,7 +226,7 @@ app.get('/', (req, res) => {
         async function deleteTransaction(id) {
           if (!confirm('確定要刪除這筆記帳紀錄嗎？')) return;
           try {
-            const res = await fetch('/api/transactions/' + id, {
+            const res = await fetch(API_BASE + '/api/transactions/' + id, {
               method: 'DELETE',
               headers: { 'Authorization': 'Bearer ' + token }
             });
