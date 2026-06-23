@@ -1,0 +1,32 @@
+### 1. 先登入以取得最新的 JWT Token
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "superwinner",
+  "password": "mySecurePassword123"
+}
+
+###
+
+### 2. 帶著 Token 去記帳（新增一筆消費）
+POST http://localhost:3000/api/transactions
+Content-Type: application/json
+x-auth-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTNhMjg5YjI0MGMyYTgwZGUyY2Q4NDIiLCJpYXQiOjE3ODIxOTYzOTQsImV4cCI6MTc4MjI4Mjc5NH0.5xFeB81lrunNb7bp0S6Yj5hahZAmyA-iP1Ci8CyHyyY
+
+{
+  "title": "Beef Noodles",
+  "amount": -180,
+  "category": "Food"
+}
+
+###
+
+### 3. 帶著 Token 查詢自己所有的記帳紀錄
+GET http://localhost:3000/api/transactions
+x-auth-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTNhMjg5YjI0MGMyYTgwZGUyY2Q4NDIiLCJpYXQiOjE3ODIxOTYzOTQsImV4cCI6MTc4MjI4Mjc5NH0.5xFeB81lrunNb7bp0S6Yj5hahZAmyA-iP1Ci8CyHyyY
+###
+
+### 4. 帶著 Token 刪除指定的消費紀錄
+DELETE http://localhost:3000/api/transactions/6a3a28c5240c2a80de2cd843
+x-auth-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTNhMjg5YjI0MGMyYTgwZGUyY2Q4NDIiLCJpYXQiOjE3ODIxOTYzOTQsImV4cCI6MTc4MjI4Mjc5NH0.5xFeB81lrunNb7bp0S6Yj5hahZAmyA-iP1Ci8CyHyyY
