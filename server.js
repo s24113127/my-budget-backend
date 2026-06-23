@@ -2,26 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors'); 
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = express();
 
 app.use(express.json());
 app.use(cors()); 
 
-// 連線邏輯：優先連雲端，失敗自動接本機虛擬庫
-async function connectDB() {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 3000 });
-    console.log('🎉 恭喜！MongoDB 雲端資料庫連線成功了！');
-  } catch (err) {
-    console.log('⚠️ 偵測到網路防火牆阻擋，正在為您啟動本機虛擬記憶體資料庫...');
-    const mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
-    console.log('🚀 虛擬資料庫啟動成功！已完美避開防火牆限制！');
-  }
-}
-connectDB();
+// 乾淨純粹的雲端資料庫連線，完全不依賴任何外部虛擬庫套件
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('🎉 恭喜！MongoDB 雲端資料庫連線成功了！'))
+  .catch(err => console.error('❌ MongoDB 連線失敗原因:', err));
 
 // 引入路由
 const authRoutes = require('./routes/auth');
@@ -99,7 +88,6 @@ app.get('/', (req, res) => {
         let userEmail = localStorage.getItem('userEmail') || '';
         let isRegisterMode = false;
 
-        // 動態獲取目前網頁所在的後端主機網址（修正跨域或網址寫錯問題）
         const API_BASE = window.location.origin;
 
         function toggleAuthMode() {
