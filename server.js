@@ -1,42 +1,50 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors'); // 修正：引入 CORS 機制，允許前端網頁跨網域連線
+const cors = require('cors'); 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = express();
 
-// 中介軟體設定
 app.use(express.json());
-app.use(cors()); // 修正：啟用 CORS，確保專題前端畫面與後端可以順利互通
+app.use(cors()); 
 
-// 自動彈性連線機制
+// 預先定義 User 與 Transaction Schema，確保虛擬資料庫啟動時能完美載入
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }
+});
+const TransactionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  description: { type: String, required: true },
+  amount: { type: Number, required: true },
+  type: { type: String, enum: ['income', 'expense'], required: true },
+  date: { type: Date, default: Date.now }
+});
+
+// 如果 model 還沒被編譯過才進行編譯，防止重複定義報錯
+if (!mongoose.models.User) mongoose.model('User', UserSchema);
+if (!mongoose.models.Transaction) mongoose.model('Transaction', TransactionSchema);
+
 async function connectDB() {
   try {
-    // 嘗試連線雲端
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 3000 });
     console.log('🎉 恭喜！MongoDB 雲端資料庫連線成功了！');
   } catch (err) {
     console.log('⚠️ 偵測到網路防火牆阻擋，正在為您啟動本機虛擬記憶體資料庫...');
-    
-    // 雲端失敗時，自動在記憶體內建立虛擬資料庫
     const mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    
     await mongoose.connect(mongoUri);
-    console.log('🚀 虛擬資料庫啟動成功！已完美避開防火牆限制！');
+    console.log('🚀 虛擬資料庫啟動成功！已完美避開防火牆限制，並已自動就緒模型架構！');
   }
 }
 connectDB();
 
-// 掛載認證路由
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-// 掛載記帳路由
 const transactionRoutes = require('./routes/transactions');
 app.use('/api/transactions', transactionRoutes);
 
-// 修正：將原本的純文字回應改為直接注入完整的前端記帳互動網頁介面
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -68,7 +76,6 @@ app.get('/', (req, res) => {
     </head>
     <body>
       <h2 style="text-align: center;">💰 雲端智慧記帳系統</h2>
-      
       <div id="authSection" class="card">
         <h3 id="authTitle">使用者登入</h3>
         <input type="email" id="email" placeholder="電子信箱 (Email)">
@@ -110,7 +117,7 @@ app.get('/', (req, res) => {
         function toggleAuthMode() {
           isRegisterMode = !isRegisterMode;
           document.getElementById('authTitle').innerText = isRegisterMode ? '新使用者註冊' : '使用者登入';
-          document.getElementById('mainAuthBtn').innerText = isRegisterMode ? '註冊新帳號 (密碼將自動安全加密)' : '登入系統';
+          document.getElementById('mainAuthBtn').innerText = isRegisterMode ? '註冊新帳號' : '登入系統';
           document.getElementById('toggleText').innerText = isRegisterMode ? '已有帳號？切換至登入' : '還沒有帳號？切換至註冊';
         }
 
@@ -133,7 +140,7 @@ app.get('/', (req, res) => {
             if (!res.ok) return alert(data.message || '認證失敗，請檢查輸入！');
             
             if (isRegisterMode) {
-              alert('🎉 註冊成功！密碼已安全進行雜湊加密，請切換回登入模式！');
+              alert('🎉 註冊成功！請切換回登入模式！');
               toggleAuthMode();
             } else {
               token = data.token;
@@ -173,7 +180,6 @@ app.get('/', (req, res) => {
             list.innerHTML = '';
             
             if (res.status === 401 || res.status === 403) {
-              alert('驗證過期，請重新登入！');
               logout();
               return;
             }
@@ -241,7 +247,6 @@ app.get('/', (req, res) => {
           } catch (err) { alert('連線錯誤！'); }
         }
 
-        // 自動檢查快取狀態
         if (token && userEmail) {
           initApp();
         }
