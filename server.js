@@ -8,23 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(cors()); 
 
-// 預先定義 User 與 Transaction Schema，確保虛擬資料庫啟動時能完美載入
-const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
-});
-const TransactionSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  description: { type: String, required: true },
-  amount: { type: Number, required: true },
-  type: { type: String, enum: ['income', 'expense'], required: true },
-  date: { type: Date, default: Date.now }
-});
-
-// 如果 model 還沒被編譯過才進行編譯，防止重複定義報錯
-if (!mongoose.models.User) mongoose.model('User', UserSchema);
-if (!mongoose.models.Transaction) mongoose.model('Transaction', TransactionSchema);
-
+// 連線邏輯：優先連雲端，失敗自動接本機虛擬庫
 async function connectDB() {
   try {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 3000 });
@@ -34,11 +18,12 @@ async function connectDB() {
     const mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
     await mongoose.connect(mongoUri);
-    console.log('🚀 虛擬資料庫啟動成功！已完美避開防火牆限制，並已自動就緒模型架構！');
+    console.log('🚀 虛擬資料庫啟動成功！已完美避開防火牆限制！');
   }
 }
 connectDB();
 
+// 引入路由（模型會由路由內部自動加載，不再重複編譯）
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
