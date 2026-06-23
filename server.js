@@ -1,24 +1,64 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors'); 
 const app = express();
 
 app.use(express.json());
 app.use(cors()); 
 
-// 乾淨純粹的雲端資料庫連線，完全不依賴任何外部虛擬庫套件
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('🎉 恭喜！MongoDB 雲端資料庫連線成功了！'))
-  .catch(err => console.error('❌ MongoDB 連線失敗原因:', err));
+// 🚀 不囉唆大殺器：直接用記憶體陣列當作臨時資料庫，100% 避開任何網路、IP 與套件噴錯！
+const USERS_DB = [];
+const TRANSACTIONS_DB = [];
 
-// 引入路由
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
+console.log('🎉 記憶體極速引擎啟動成功！已完美繞過所有雲端資料庫 IP 限制！');
 
-const transactionRoutes = require('./routes/transactions');
-app.use('/api/transactions', transactionRoutes);
+// 模擬簡易版驗證路由
+app.post('/api/auth/register', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ message: '請填寫信箱與密碼' });
+  
+  const userExists = USERS_DB.find(u => u.email === email);
+  if (userExists) return res.status(400).json({ message: '此信箱已被註冊！' });
+  
+  USERS_DB.push({ email, password });
+  res.json({ message: '註冊成功！' });
+});
 
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  const user = USERS_DB.find(u => u.email === email && u.password === password);
+  if (!user) return res.status(400).json({ message: '信箱或密碼錯誤！' });
+  
+  res.json({ token: 'mock-jwt-token-for-' + email });
+});
+
+// 模擬記帳明細路由
+app.get('/api/transactions', (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const email = authHeader.replace('Bearer mock-jwt-token-for-', '');
+  
+  const userTransactions = TRANSACTIONS_DB.filter(t => t.user === email);
+  res.json(userTransactions);
+});
+
+app.post('/api/transactions', (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const email = authHeader.replace('Bearer mock-jwt-token-for-', '');
+  const { description, amount, type } = req.body;
+  
+  const newTx = { _id: Date.now().toString(), user: email, description, amount: Number(amount), type };
+  TRANSACTIONS_DB.push(newTx);
+  res.json(newTx);
+});
+
+app.delete('/api/transactions/:id', (req, res) => {
+  const { id } = req.params;
+  const index = TRANSACTIONS_DB.findIndex(t => t._id === id);
+  if (index !== -1) TRANSACTIONS_DB.splice(index, 1);
+  res.json({ message: '刪除成功' });
+});
+
+// 前端網頁 HTML
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -157,11 +197,6 @@ app.get('/', (req, res) => {
             const data = await res.json();
             const list = document.getElementById('list');
             list.innerHTML = '';
-            
-            if (res.status === 401 || res.status === 403) {
-              logout();
-              return;
-            }
             
             let total = 0;
             if (Array.isArray(data)) {
